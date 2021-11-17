@@ -1,6 +1,7 @@
+#include <iostream>
+
 #include <stdint.h>
 #include <stdlib.h>
-
 
 #define EXIT_SUCCESS 0
 
@@ -27,6 +28,11 @@ struct Mem
             return Data[address];
   
         return 0x0;
+    }
+
+    Byte& operator[] (uint32_t address)
+    {
+        return Data[address];
     }
 
 };
@@ -60,20 +66,39 @@ struct CPU
         memory.Init();
     }   
     
-    Byte FetchByte(uint32_t cycles, Mem& memory)
+    Byte FetchByte(uint32_t& cycles, const Mem& memory)
     {
         Byte data = memory[PC];
+        
         PC++;
         cycles--;
+    
         return data;
     }
-    
-    void Execute(uint32_t cycles, Mem& memory)
+   
+    // opcodes
+    static constexpr Byte INS_LDA_IM = 0xA9;
+
+    void Execute(uint32_t cycles, const Mem& memory)
     {
         while(cycles > 0)
         {
             Byte ins = FetchByte(cycles, memory);
-            
+            switch (ins)
+            {
+                case INS_LDA_IM:
+                {    
+                    Byte value = FetchByte(cycles, memory);
+                    A = value;
+                    Z = (A == 0);
+                    N = (A & 0x10000000) > 0;
+                    std::cout << "LDA " << value << std::endl;
+                } break;
+                default:
+                {
+                    std::cout << "instruction not handled" << std::endl;
+                } break;
+            }
         }
     }
 
@@ -85,6 +110,11 @@ int main()
     Mem mem;
     CPU cpu;
     cpu.Reset(mem);
+    
+    // setup a base program to memory
+    mem[0xFFFC] = CPU::INS_LDA_IM;
+    mem[0xFFFD] = 0x42;
+
     cpu.Execute(2, mem);
 
     return EXIT_SUCCESS;
