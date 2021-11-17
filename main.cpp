@@ -21,6 +21,14 @@ struct Mem
 
     }
 
+    Byte operator[] (uint32_t address) const
+    {
+        if (address < MEM_SIZE)
+            return Data[address];
+  
+        return 0x0;
+    }
+
 };
 
 struct CPU
@@ -50,14 +58,35 @@ struct CPU
         A = X = Y = 0x0;
 
         memory.Init();
-
     }   
+    
+    Byte FetchByte(uint32_t cycles, Mem& memory)
+    {
+        Byte data = memory[PC];
+        PC++;
+        cycles--;
+        return data;
+    }
+    
+    void Execute(uint32_t cycles, Mem& memory)
+    {
+        while(cycles > 0)
+        {
+            Byte ins = FetchByte(cycles, memory);
+            
+        }
+    }
+
 
 };
 
 int main()
-{
+{   
+    Mem mem;
     CPU cpu;
+    cpu.Reset(mem);
+    cpu.Execute(2, mem);
+
     return EXIT_SUCCESS;
 }
 
