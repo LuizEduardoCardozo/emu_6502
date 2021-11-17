@@ -41,13 +41,16 @@ struct CPU
     Byte V : 1; // oVerflow
     Byte N : 1; // Negative
 
-    void Reset()                                                
+    void Reset(Mem& memory)                                                
     {                                                           
         PC = 0xFFFC;                                            
         SP = 0x0100;                                            
         D = 0;                                                  
         C = Z = I = D = B = V = N = 0x0;                        
         A = X = Y = 0x0;
+
+        memory.Init();
+
     }   
 
 };
