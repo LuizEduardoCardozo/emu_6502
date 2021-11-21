@@ -1,4 +1,5 @@
 #include <iostream>
+
 #include <stdint.h>
 #include <stdlib.h>
 
@@ -32,6 +33,13 @@ struct Mem
     Byte& operator[] (uint32_t address)
     {
         return Data[address];
+    }
+
+    void WriteWord(uint32_t& cycles, Word value, uint32_t address)
+    {
+        Data[address] = value & 0xFF;
+        Data[address+1] = value >> 8;
+        cycles -= 2;
     }
 
 };
@@ -74,11 +82,34 @@ struct CPU
     
         return data;
     }
-   
-    // opcodes
-    static constexpr Byte INS_LDA_IM = 0xA9;
 
-    void Execute(uint32_t cycles, const Mem& memory)
+    Byte ReadByte(uint32_t& cycles, Byte address, const Mem& memory)
+    {
+        Byte data = memory[address];
+        cycles--;
+        return data;
+    }
+
+    Word FetchWord(uint32_t& cycles, const Mem& memory)
+    {
+        Word data = memory[PC];
+        PC++;
+
+        data |= (memory[PC] << 8);
+        PC++;
+
+        cycles += 2;
+
+        return data;
+    }
+
+    // opcodes
+    static constexpr Byte INS_LDA_IM = 0xA9,
+                        INS_LDA_ZP = 0xA5,
+                        INS_LDA_ZPX = 0xB5,
+                        INS_JSR = 0x20;
+
+    void Execute(uint32_t cycles, Mem& memory)
     {
         while(cycles > 0)
         {
@@ -92,6 +123,33 @@ struct CPU
                     Z = (A == 0);
                     N = (A & 0x10000000) > 0;
                     std::cout << "LDA " << value << std::endl;
+                } break;
+                case INS_LDA_ZP:
+                {
+                    Byte zeroPageAddress = FetchByte(cycles, memory);
+                    A = ReadByte(cycles, zeroPageAddress, memory);
+                    Z = (A == 0);
+                    N = (A & 0x10000000) > 0;
+                    std::cout << "LDA " << A << " ---> value in acumulator " << A << std::endl;
+                } break;
+                case INS_LDA_ZPX:
+                {
+                  Byte zeroPageAddress = FetchByte(cycles, memory);
+                  zeroPageAddress += X;
+                  cycles--;
+                  // TODO - what if the address overflows?
+                  A = ReadByte(cycles, zeroPageAddress, memory);
+                  Z = (A == 0);
+                  N = (A & 0x10000000) > 0;
+                    
+                } break;
+                case INS_JSR:
+                {
+                    Word subRoutineAddress = FetchWord(cycles, memory);
+                    memory.WriteWord(cycles,PC-1,SP);
+                    SP++;
+                    PC = subRoutineAddress;
+                    std::cout << "JSR " << PC << " ---> jumping to another address!"<< std::endl;
                 } break;
                 default:
                 {
@@ -111,10 +169,13 @@ int main()
     cpu.Reset(mem);
     
     // setup a base program to memory
-    mem[0xFFFC] = CPU::INS_LDA_IM;
+    mem[0xFFFC] = CPU::INS_JSR;
     mem[0xFFFD] = 0x42;
+    mem[0xFFFE] = 0x42;
+    mem[0x4242] = CPU::INS_LDA_IM;
+    mem[0x4243] = 0x84;
 
-    cpu.Execute(2, mem);
+    cpu.Execute(3, mem);
 
     return EXIT_SUCCESS;
 }
